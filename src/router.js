@@ -19,11 +19,13 @@
 				return
 			}
 			let _state = findStateByName(state)
-			if (_state) _state = state
-			else {
-				if (state.url && state.url[0] == '/') state.url = state.url.substr(1)
+      if (_state) _state = state;
+      else {
+        if (state.url && state.url[0] === '/') state.url = state.url.substr(1)
+        if (typeof state.url === 'string' && state.url.slice(-1) !== '/') state.url = state.url + '/'
 				_states.push(state)
 			}
+
 			router.trigger('add', _state)
 			return this
 		},
@@ -38,7 +40,7 @@
 			return this
 		},
 
-		go(name, params, popped) {
+		go(name, params, popped, noPush) {
 			if (!router.active || !name) return
 			// Match the state in the list of states, if no state available throw error
 			let _state = findStateByName(name)
@@ -70,7 +72,7 @@
 				if (typeof promise.then == 'function')
 					promise.then(() => changeState(_state, popped))
 			} else {
-				changeState(_state, popped)
+				changeState(_state, popped, noPush)
 			}
 			return this
 		},
@@ -78,13 +80,16 @@
 		start() {
 			router.active = true
 			if (window.location.hash) {
-				const _state = findStateByUrl(window.location.hash.replace(`${router.hash}/`, ''))
-				if (_state) router.go(_state.name)
+				const re = new RegExp('^' + router.hash)
+				const url = window.location.hash.replace(re, '') || '/'
+				const _state = findStateByUrl(url)
+				if (_state) router.go(_state.name, null, null, true)
 			} else if (router.hash === '') { // we are using pushState
-				var _state = findStateByUrl(window.location.pathname.slice(1));
+				const _state = findStateByUrl(window.location.pathname.slice(1));
 				if (_state) router.go(_state.name);
 			}
 			window.addEventListener('popstate', handlePop)
+			window.addEventListener('hashchange', handleHash)
 			router.trigger('start')
 			return this
 		},
@@ -92,6 +97,7 @@
 		stop() {
 			router.active = false
 			window.removeEventListener('popstate', handlePop)
+			window.addEventListener('hashchange', handleHash)
 			router.trigger('stop')
 			return this
 		},
@@ -105,6 +111,8 @@
 	}
 
 	function findStateByUrl(url) {
+    if (url && url.length > 1 && url[0] === '/') url = url.substr(1)
+    if (typeof url === 'string' && url.slice(-1) !== '/') url = `${url}/`
 		// Search states based on url pattern
 		const state = _states.find(state => state.url == url)
 		if (state) return state
@@ -132,9 +140,17 @@
 		if (e.state) router.go(e.state.name, e.state.params, true)
 	}
 
-	function changeState(state, popped) {
+	function handleHash(e) {
+		//console.debug("handleHash:", window.location.hash, e);
+		const re = new RegExp('^' + router.hash)
+		const url = window.location.hash.replace(re, '') || '/'
+		const _state = findStateByUrl(url)
+		if (_state) router.go(_state.name, _state.params, true, true)
+	}
+
+	function changeState(state, popped, noPush) {
 		// If supported
-		if (typeof history.pushState != 'undefined' && state.history != false) {
+		if (typeof history.pushState != 'undefined' && state.history != false && noPush != true) {
 			// New state
 			if (!history.state || !popped) {
 				var _newState = {}
@@ -159,9 +175,9 @@
 				if (param[0] != ':') return param
 				return state.params[param.substr(1)]
 			}).filter(seg => seg ? true : false).join('/')
-			return `${router.hash}/${url}`
+			return `${router.hash}/${url ? url + '/' : ''}`
 		}
-		return state.hasOwnProperty('url') ? `${router.hash}/${state.url}` : null
+		return state.hasOwnProperty('url') ? `${router.hash}/${state.url === '/' ? '' : '/'}` : null
 	}
 
 	riot.observable(router)

@@ -99,4 +99,4 @@ this.router.on('remove', function (state) {
 this.router.on('go', function (curr, prev) {
 	return console.log(curr, prev);
 });
-}, '{ }');
+});

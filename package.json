@@ -41,7 +41,7 @@
     "babel": "~5.8.34",
     "babel-core": "~5.8.34",
     "babel-plugin-object-assign": "^1.2.1",
-    "riot": "~2.3.1",
+    "riot": "^2.6.1",
     "uglify-js": "~2.5.0"
   }
 }

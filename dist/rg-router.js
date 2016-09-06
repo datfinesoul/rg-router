@@ -23,9 +23,11 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 			}
 			var _state = findStateByName(state);
 			if (_state) _state = state;else {
-				if (state.url && state.url[0] == '/') state.url = state.url.substr(1);
+				if (state.url && state.url[0] === '/') state.url = state.url.substr(1);
+				if (typeof state.url === 'string' && state.url.slice(-1) !== '/') state.url = state.url + '/';
 				_states.push(state);
 			}
+
 			router.trigger('add', _state);
 			return this;
 		},
@@ -39,7 +41,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 			return this;
 		},
 
-		go: function go(name, params, popped) {
+		go: function go(name, params, popped, noPush) {
 			if (!router.active || !name) return;
 			// Match the state in the list of states, if no state available throw error
 			var _state = findStateByName(name);
@@ -72,7 +74,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 					return changeState(_state, popped);
 				});
 			} else {
-				changeState(_state, popped);
+				changeState(_state, popped, noPush);
 			}
 			return this;
 		},
@@ -80,14 +82,17 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 		start: function start() {
 			router.active = true;
 			if (window.location.hash) {
-				var _state2 = findStateByUrl(window.location.hash.replace(router.hash + "/", ''));
-				if (_state2) router.go(_state2.name);
+				var re = new RegExp('^' + router.hash);
+				var url = window.location.hash.replace(re, '') || '/';
+				var _state = findStateByUrl(url);
+				if (_state) router.go(_state.name, null, null, true);
 			} else if (router.hash === '') {
 				// we are using pushState
 				var _state = findStateByUrl(window.location.pathname.slice(1));
 				if (_state) router.go(_state.name);
 			}
 			window.addEventListener('popstate', handlePop);
+			window.addEventListener('hashchange', handleHash);
 			router.trigger('start');
 			return this;
 		},
@@ -95,6 +100,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 		stop: function stop() {
 			router.active = false;
 			window.removeEventListener('popstate', handlePop);
+			window.addEventListener('hashchange', handleHash);
 			router.trigger('stop');
 			return this;
 		},
@@ -110,6 +116,8 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 	}
 
 	function findStateByUrl(url) {
+		if (url && url.length > 1 && url[0] === '/') url = url.substr(1);
+		if (typeof url === 'string' && url.slice(-1) !== '/') url = url + "/";
 		// Search states based on url pattern
 		var state = _states.find(function (state) {
 			return state.url == url;
@@ -139,9 +147,17 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 		if (e.state) router.go(e.state.name, e.state.params, true);
 	}
 
-	function changeState(state, popped) {
+	function handleHash(e) {
+		//console.debug("handleHash:", window.location.hash, e);
+		var re = new RegExp('^' + router.hash);
+		var url = window.location.hash.replace(re, '') || '/';
+		var _state = findStateByUrl(url);
+		if (_state) router.go(_state.name, _state.params, true, true);
+	}
+
+	function changeState(state, popped, noPush) {
 		// If supported
-		if (typeof history.pushState != 'undefined' && state.history != false) {
+		if (typeof history.pushState != 'undefined' && state.history != false && noPush != true) {
 			// New state
 			if (!history.state || !popped) {
 				var _newState = {};
@@ -168,9 +184,9 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 			}).filter(function (seg) {
 				return seg ? true : false;
 			}).join('/');
-			return router.hash + "/" + url;
+			return router.hash + "/" + (url ? url + '/' : '');
 		}
-		return state.hasOwnProperty('url') ? router.hash + "/" + state.url : null;
+		return state.hasOwnProperty('url') ? router.hash + "/" + (state.url === '/' ? '' : '/') : null;
 	}
 
 	riot.observable(router);
