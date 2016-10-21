@@ -141,11 +141,15 @@
 	}
 
 	function handleHash(e) {
-		//console.debug("handleHash:", window.location.hash, e);
 		const re = new RegExp('^' + router.hash)
 		const url = window.location.hash.replace(re, '') || '/'
 		const _state = findStateByUrl(url)
 		if (_state) router.go(_state.name, _state.params, true, true)
+    else {
+      var prevState = router.current;
+      router.current = state;
+      router.trigger('go', state, prevState);
+    }
 	}
 
 	function changeState(state, popped, noPush) {

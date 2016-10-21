@@ -148,11 +148,14 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 	}
 
 	function handleHash(e) {
-		//console.debug("handleHash:", window.location.hash, e);
 		var re = new RegExp('^' + router.hash);
 		var url = window.location.hash.replace(re, '') || '/';
 		var _state = findStateByUrl(url);
-		if (_state) router.go(_state.name, _state.params, true, true);
+		if (_state) router.go(_state.name, _state.params, true, true);else {
+			var prevState = router.current;
+			router.current = state;
+			router.trigger('go', state, prevState);
+		}
 	}
 
 	function changeState(state, popped, noPush) {
